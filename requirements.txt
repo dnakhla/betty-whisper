@@ -1,0 +1,7 @@
+numpy
+sounddevice
+git+https://github.com/openai/whisper.git
+moviepy
+pyaudio
+pydub
+webrtcvad
