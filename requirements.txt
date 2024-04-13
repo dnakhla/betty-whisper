@@ -1,7 +1,9 @@
 numpy
 sounddevice
-git+https://github.com/openai/whisper.git
+whisper
 moviepy
 pyaudio
 pydub
 webrtcvad
+pyannote.audio
+flask
