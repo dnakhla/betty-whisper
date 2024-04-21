@@ -1,6 +1,7 @@
 import pyaudio
 import numpy as np
 import whisper
+from faster_whisper import WhisperModel
 import webrtcvad
 import queue
 import threading
@@ -9,7 +10,6 @@ from datetime import datetime
 import requests
 import json
 import asyncio
-
 
 # Set the sample rate and frame duration
 sample_rate = 16000  # in Hz
@@ -21,16 +21,24 @@ vad_mode = 3  # Aggressive mode
 min_speech_duration = 250  # in ms
 
 # Create an instance of the Whisper model with default options
-model = whisper.load_model("base")
+model = WhisperModel("base", device="cpu", compute_type="int8")
 
 # Default values for options
 default_task = "transcribe"
-default_beam_size = 10
-default_best_of = 3
-default_temperature = 0.3
+default_beam_size = 5
+default_best_of = 5
+default_patience = None
+default_length_penalty = None
+default_temperature = 0.0
 default_compression_ratio_threshold = 2.4
-default_logprob_threshold = -1.0
-default_no_speech_threshold = 0.5
+default_log_prob_threshold = None
+default_no_speech_threshold = 0.6
+default_condition_on_previous_text = True
+default_initial_prompt = None
+default_word_timestamps = True
+default_prepend_punctuations = "\\\"'\u00BF([{-"
+default_append_punctuations = "\\\"'.\u3002,\uFF0C!\uFF01?\uFF1F:\uFF1A\")]}\u3001"
+default_vad_filter = True
 
 # Audio recording and transcription parameters
 audio_queue = queue.Queue()
@@ -84,27 +92,30 @@ def transcribe_audio():
                         if speech_duration >= min_speech_duration:
                             audio_data = np.frombuffer(b''.join(speech_frames), dtype=np.int16)
                             audio_data = audio_data.astype(np.float32) / 32768.0
-                            transcription = model.transcribe(
+
+                            segments, info = model.transcribe(
                                 audio_data,
-                                task=default_task,
                                 beam_size=default_beam_size,
                                 best_of=default_best_of,
                                 temperature=default_temperature,
                                 compression_ratio_threshold=default_compression_ratio_threshold,
-                                logprob_threshold=default_logprob_threshold,
+                                log_prob_threshold=default_log_prob_threshold,
                                 no_speech_threshold=default_no_speech_threshold,
-                                language="en",
-                                fp16=False,
-                                condition_on_previous_text=False,
-                                verbose=True
+                                condition_on_previous_text=default_condition_on_previous_text,
+                                initial_prompt=default_initial_prompt,
+                                word_timestamps=default_word_timestamps,
+                                prepend_punctuations=default_prepend_punctuations,
+                                append_punctuations=default_append_punctuations,
+                                vad_filter=default_vad_filter
                             )
-                            text = transcription["text"].strip()
-                            if text:
-                                file.write(text + " ")
-                                file.flush()  # Flush the buffer to write immediately
+                            for segment in segments:
+                                text = segment.text.strip()
+                                if text:
+                                    file.write(text + " ")
+                                    file.flush()  # Flush the buffer to write immediately
                         speech_frames = []
                     frames = []
-
+                    
 async def generate_summary(transcript):
     print('Generating summary...')
     url = 'http://localhost:11434/api/chat'
@@ -119,14 +130,13 @@ async def generate_summary(transcript):
         },
     ]
     payload = {
-        'model': 'mistral',
+        'model': 'llama3',
         'messages': messages,
         'stream': False,
         "options": {
             "num_keep": 5,
             "num_predict":10000,
             "seed": 42,
-            # "num_predict": 100,
             "temperature": .2,
             "penalize_newline": False,
             "num_thread": 8
@@ -137,7 +147,6 @@ async def generate_summary(transcript):
     }
     try:
         response = requests.post(url, data=json.dumps(payload), headers=headers)
-        # print('Response content:', response.content)
         response_data = response.json()
         summary = response_data['message']['content']  # Modify this line based on the actual response structure
         print('Summary generated.')
@@ -170,7 +179,6 @@ async def main():
     print("\nTranscriptions:")
     with open(output_file_path, "r") as file:
         transcript = file.read()
-        # print(transcript)
 
     # Generate summary using LLM
     summary = await generate_summary(transcript)

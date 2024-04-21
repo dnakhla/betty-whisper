@@ -1,9 +1,5 @@
 numpy
-sounddevice
-whisper
-moviepy
 pyaudio
-pydub
-webrtcvad
-pyannote.audio
-flask
+faster-whisper
+requests
+asyncio
