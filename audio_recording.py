@@ -4,6 +4,7 @@ import pyaudio
 import webrtcvad
 import numpy as np
 from faster_whisper import WhisperModel
+import wave
 
 # Set the sample rate and frame duration
 sample_rate = 16000  # in Hz
@@ -87,3 +88,24 @@ def transcribe_audio(is_recording, audio_buffer, output_file_path):
                                     file.flush()  # Flush the buffer to write immediately
                         speech_frames = []
                     frames = []
+
+def save_audio(is_recording, audio_file_path):
+    chunk_size = int(sample_rate * frame_duration // 1000)
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
+
+    frames = []
+    while is_recording():
+        data = stream.read(chunk_size)
+        frames.append(data)
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    wf = wave.open(audio_file_path, 'wb')
+    wf.setnchannels(1)
+    wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+    wf.setframerate(sample_rate)
+    wf.writeframes(b''.join(frames))
+    wf.close()
