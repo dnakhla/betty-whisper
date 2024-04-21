@@ -2,7 +2,6 @@
 
 import pyaudio
 import webrtcvad
-import queue
 import numpy as np
 from faster_whisper import WhisperModel
 
@@ -32,31 +31,28 @@ default_prepend_punctuations = "\\\"'\u00BF([{-"
 default_append_punctuations = "\\\"'.\u3002,\uFF0C!\uFF01?\uFF1F:\uFF1A\")]}\u3001"
 default_vad_filter = True
 
-# Audio recording and transcription parameters
-audio_queue = queue.Queue()
-
-def record_audio(is_recording):
+def record_audio(is_recording, audio_buffer):
     chunk_size = int(sample_rate * frame_duration // 1000)
     audio = pyaudio.PyAudio()
     stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
 
     while is_recording():
         data = stream.read(chunk_size)
-        audio_queue.put(data)
+        audio_buffer.put(data)
 
     stream.stop_stream()
     stream.close()
     audio.terminate()
 
-def transcribe_audio(is_recording, output_file_path):
+def transcribe_audio(is_recording, audio_buffer, output_file_path):
     frames = []
     speech_frames = []
 
     with open(output_file_path, "w") as file:
         file.write("Transcript:" + "\n")
-        while is_recording() or not audio_queue.empty():
-            if not audio_queue.empty():
-                data = audio_queue.get()
+        while is_recording() or not audio_buffer.empty():
+            if not audio_buffer.empty():
+                data = audio_buffer.get()
                 frames.append(data)
                 is_speech = vad.is_speech(data, sample_rate)
 

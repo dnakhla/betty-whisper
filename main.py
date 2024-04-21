@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import threading
 import asyncio
+from queue import Queue
 from summary_generator import generate_summary
 from audio_recording import record_audio, transcribe_audio
 
@@ -20,6 +21,9 @@ os.makedirs("transcriptions", exist_ok=True)
 # Set the full path for the output file
 output_file_path = os.path.join("transcriptions", output_file)
 
+# Create a buffer queue for audio data
+audio_buffer = Queue()
+
 async def main():
     recording = True
 
@@ -28,8 +32,8 @@ async def main():
         input("Press Enter to stop recording...")
         recording = False
 
-    record_thread = threading.Thread(target=record_audio, args=(lambda: recording,))
-    transcribe_thread = threading.Thread(target=transcribe_audio, args=(lambda: recording, output_file_path))
+    record_thread = threading.Thread(target=record_audio, args=(lambda: recording, audio_buffer))
+    transcribe_thread = threading.Thread(target=transcribe_audio, args=(lambda: recording, audio_buffer, output_file_path))
     stop_thread = threading.Thread(target=stop_recording)
 
     record_thread.start()
