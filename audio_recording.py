@@ -35,14 +35,25 @@ default_vad_filter = True
 def record_audio(is_recording, audio_buffer):
     chunk_size = int(sample_rate * frame_duration // 1000)
     audio = pyaudio.PyAudio()
-    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
+    stream = None
 
     while is_recording():
-        data = stream.read(chunk_size)
-        audio_buffer.put(data)
+        try:
+            if stream is None:
+                stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
+            data = stream.read(chunk_size)
+            audio_buffer.put(data)
+        except OSError as e:
+            print(f"Error occurred during audio recording: {str(e)}")
+            # Close the current stream and create a new one
+            if stream is not None:
+                stream.stop_stream()
+                stream.close()
+            stream = None
 
-    stream.stop_stream()
-    stream.close()
+    if stream is not None:
+        stream.stop_stream()
+        stream.close()
     audio.terminate()
 
 def transcribe_audio(is_recording, audio_buffer, output_file_path):

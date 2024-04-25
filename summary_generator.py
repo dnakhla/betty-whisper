@@ -9,11 +9,11 @@ async def generate_summary(transcript):
     messages = [
         {
             'role': 'system',
-            'content': 'You are an AI assistant that excels at summarizing transcripts. Often there are errors in the transcript so use your reasoning and context to first make sense of the topics and the transcript keeping in mind that words are often transcripted in correctly due to poor sound. Please follow the below steps to generate a summary:',
+            'content': 'You are an AI assistant that excels at summarizing and applying diarization to transcripts. Often there are errors in the transcript so use your reasoning and the context to first make sense of the topics and the transcript keeping in mind that words are often transcripted in correctly due to poor sound. Please follow the below steps to generate a summary:',
         },
         {
             'role': 'user',
-            'content': f'Here is the transcript:\n\n{transcript}\n\nPlease generate a concise summary of the transcript with the following details:\n- Bullet-pointed summary of the main points\n- List of important details mentioned\n- Any follow-up actions or recommendations\n\nEnsure the response contains only the summary, without any additional explanations or text. at the bottom list "Questions Asked:" and put concise answers to any questions asked answered on the call and actually add answers and intelligence based on the transcript',
+            'content': f'Here is the transcript:\n\n{transcript}\n\nPlease generate a concise summary of the transcript with the following details: Who was on this meeting: All the people you can identify in the conversation as bullet points with a confidence rating next to them from 0 - 100. \n- Bullet-pointed summary of the main points\n- List of important details mentioned\n- Any follow-up actions or recommendations\n\nEnsure the response contains only the summary, without any additional explanations or text. at the bottom list "Questions Asked:" and put concise answers to any questions asked answered on the call and actually add answers and intelligence based on the transcript',
         },
     ]
     payload = {
