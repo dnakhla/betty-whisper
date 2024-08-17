@@ -2,52 +2,36 @@
 
 import os
 from datetime import datetime
-import threading
 import asyncio
-from queue import Queue
+from audio_recording import AudioProcessor
 from summary_generator import generate_summary
-from audio_recording import record_audio, transcribe_audio, save_audio
-
-# Get the current date and time
-current_datetime = datetime.now()
-
-# Format the date and time as a string
-datetime_string = current_datetime.strftime("%Y%m%d_%H%M%S")
-output_file = f"transcriptions_{current_datetime.strftime('%m-%d-%Y__%A__%I:%M:%S%p')}.txt"
-audio_file = f"audio_{current_datetime.strftime('%m-%d-%Y__%A__%I:%M:%S%p')}.wav"
-
-# Create the "transcriptions" directory if it doesn't exist
-os.makedirs("transcriptions", exist_ok=True)
-
-# Set the full path for the output file and audio file
-output_file_path = os.path.join("transcriptions", output_file)
-audio_file_path = os.path.join("transcriptions", audio_file)
-
-# Create a buffer queue for audio data
-audio_buffer = Queue()
 
 async def main():
-    recording = True
+    # Get the current date and time
+    current_datetime = datetime.now()
 
-    def stop_recording():
-        nonlocal recording
-        input("Press Enter to stop recording...")
-        recording = False
+    # Format the date and time as a string
+    output_file = f"t_{current_datetime.strftime('%m-%d-%Y__%A__%I:%M:%S%p')}.txt"
+    audio_file = f"audio_{current_datetime.strftime('%m-%d-%Y__%A__%I:%M:%S%p')}.wav"
 
-    record_thread = threading.Thread(target=record_audio, args=(lambda: recording, audio_buffer))
-    transcribe_thread = threading.Thread(target=transcribe_audio, args=(lambda: recording, audio_buffer, output_file_path))
-    save_audio_thread = threading.Thread(target=save_audio, args=(lambda: recording, audio_file_path))
-    stop_thread = threading.Thread(target=stop_recording)
+    # Create the "transcriptions" directory if it doesn't exist
+    os.makedirs("transcriptions", exist_ok=True)
 
-    record_thread.start()
-    transcribe_thread.start()
-    save_audio_thread.start()
-    stop_thread.start()
+    # Set the full path for the output file and audio file
+    output_file_path = os.path.join("transcriptions", output_file)
+    audio_file_path = os.path.join("transcriptions", audio_file)
 
-    stop_thread.join()
-    record_thread.join()
-    transcribe_thread.join()
-    save_audio_thread.join()
+    # Create an AudioProcessor instance
+    processor = AudioProcessor(output_file_path, audio_file_path)
+
+    print("Recording started. Press Enter to stop recording...")
+    processor.start_recording()
+
+    # Wait for user input to stop recording
+    await asyncio.get_event_loop().run_in_executor(None, input)
+
+    print("\nStopping recording...")
+    processor.stop_recording()
 
     print("Recording stopped.")
 
@@ -55,6 +39,7 @@ async def main():
     print("\nTranscriptions:")
     with open(output_file_path, "r") as file:
         transcript = file.read()
+    print(transcript)
 
     # Generate summary using LLM
     summary = await generate_summary(transcript)
@@ -63,8 +48,7 @@ async def main():
 
     # Write the summary to the file
     with open(output_file_path, "a") as file:
-        file.write("\n\nSummary:\n")
-        file.write(summary)
+        file.write(f"\n\nSummary:\n {summary}")
 
     # Write meta information to the file
     with open(output_file_path, "a") as file:
