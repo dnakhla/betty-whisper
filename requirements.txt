@@ -1,5 +1,6 @@
-numpy
 pyaudio
+webrtcvad
+numpy
 faster-whisper
 requests
-asyncio
+jsonschema
